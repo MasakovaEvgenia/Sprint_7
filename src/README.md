@@ -5,7 +5,7 @@
 
 ## Ссылки
 - [Сервис Яндекс.Самокат](https://qa-scooter.praktikum-services.ru/)
-- [Документация API](https://qa-scooter.praktikum-services.ru/docs/#api-Courier-Login)
+- [Документация API](https://qa-scooter.praktikum-services.ru/docs/#api-entity.Courier-Login)
 
 ## Технологии
 

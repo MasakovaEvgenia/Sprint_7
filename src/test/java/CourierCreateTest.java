@@ -1,68 +1,74 @@
-import io.qameta.allure.Step;
+import api.CourierApi;
+import entity.Courier;
+import entity.LoginData;
+import io.restassured.RestAssured;
 import io.restassured.response.Response;
+import org.apache.commons.lang3.RandomStringUtils;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
-import static io.restassured.RestAssured.given;
+import static org.apache.http.HttpStatus.*;
 import static org.hamcrest.Matchers.equalTo;
 
-public class CourierCreateTest extends CourierBaseTest {
+public class CourierCreateTest {
 
-    /* @Test
-    public void testCreateCourier() {
-        Response response = createCourier();
-        response.then().statusCode(201)
-                .body("ok", equalTo(true));
-    } курьер создается в классе  CourierBaseTest */
+    protected final String LOGIN =  "ninja_" + RandomStringUtils.randomAlphanumeric(8);
+    protected final String PASSWORD = "1234";
+    protected final String FIRST_NAME = "saske";
+    public Integer courierId;
 
-    @Test
-    public void testCannotCreateDuplicateCourier() {
-        createCourier();
-        Response response = createCourier();
-        response.then().statusCode(409).and().body("message", equalTo("Этот логин уже используется. Попробуйте другой."));
+    @Before
+    public void setUp() {
+        RestAssured.baseURI = CourierApi.BASE_URL;
+    }
+
+    @After
+    public void tearDown() {
+        if (courierId != null) {
+            CourierApi.deleteCourier(courierId);
+        }
     }
 
     @Test
-    public void testCreateCourierWithoutRequiredFields() {
-        Response response = createCourierWithoutLogin();
-        response.then().statusCode(400).and().body("message", equalTo("Недостаточно данных для создания учетной записи"));
+    public void testCreateCourier() {
+        Courier courier = new Courier(LOGIN, PASSWORD, FIRST_NAME);
+        Response response = CourierApi.createCourier(courier);
+        courierId = response.then().extract().path("id");
+        response.then().statusCode(SC_CREATED)
+                .body("ok", equalTo(true));
+    }
+
+    @Test
+    public void testCannotCreateDuplicateCourier() {
+        Courier courier = new Courier(LOGIN, PASSWORD, FIRST_NAME);
+        Response response = CourierApi.createCourier(courier);
+        LoginData loginData = new LoginData(LOGIN, PASSWORD);
+        Response loginResp = CourierApi.loginCourier(loginData);
+        courierId = loginResp.then().extract().path("id");
+        Response responseDuplicate = CourierApi.createCourier(courier);
+        responseDuplicate.then().statusCode(SC_CONFLICT).and().body("message", equalTo("Этот логин уже используется. Попробуйте другой."));
+    }
+
+    @Test
+    public void testCreateCourierWithoutLogin() {
+        Courier courier = new Courier(null, PASSWORD, FIRST_NAME);
+        Response response = CourierApi.createCourier(courier);
+        response.then().statusCode(SC_BAD_REQUEST).and().body("message", equalTo("Недостаточно данных для создания учетной записи"));
     }
 
     @Test
     public void testCreateCourierWithoutPassword() {
-        Response response = createCourierWithoutPassword();
-        response.then().statusCode(400).and().body("message", equalTo("Недостаточно данных для создания учетной записи"));
+        Courier courier = new Courier(LOGIN, null, FIRST_NAME);
+        Response response = CourierApi.createCourier(courier);
+        response.then().statusCode(SC_BAD_REQUEST).and().body("message", equalTo("Недостаточно данных для создания учетной записи"));
     }
 
     @Test
     public void testCreateCourierWithoutFirstName() { // из документации непонятно, first name - обязательно для заполнения???
-        Response response = createCourierWithoutFirstName();
-        response.then().statusCode(400).and().body("message", equalTo("Недостаточно данных для создания учетной записи"));
+        Courier courier = new Courier(LOGIN, PASSWORD, null);
+        Response response = CourierApi.createCourier(courier);
+        response.then().statusCode(SC_BAD_REQUEST).and().body("message", equalTo("Недостаточно данных для создания учетной записи"));
     }
 
-    @Step("Creating courier without login")
-    private Response createCourierWithoutLogin() {
-        return given()
-                .header("Content-type", "application/json")
-                .body("{\"password\": \"" + PASSWORD + "\", \"firstName\": \"" + FIRST_NAME + "\"}")
-                .when()
-                .post(COURIER_ENDPOINT);
-    }
-
-    @Step("Creating courier without password")
-    private Response createCourierWithoutPassword() {
-        return given()
-                .header("Content-type", "application/json")
-                .body("{\"login\": \"" + login + "\", \"firstName\": \"" + FIRST_NAME + "\"}")
-                .when()
-                .post(COURIER_ENDPOINT);
-    }
-
-    @Step("Creating courier without firstName")
-    private Response createCourierWithoutFirstName() {
-        return given()
-                .header("Content-type", "application/json")
-                .body("{\"login\": \"" + login + "\", \"password\": \"" + PASSWORD + "\"}")
-                .when()
-                .post(COURIER_ENDPOINT);
-    }
 }
